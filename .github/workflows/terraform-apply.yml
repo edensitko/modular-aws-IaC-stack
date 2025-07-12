@@ -15,6 +15,16 @@ on:
         description: "Type 'APPLY' to confirm applying changes"
         required: true
         type: string
+      skip_import:
+        description: "Skip importing existing resources (use if you're sure resources don't exist)"
+        required: false
+        default: false
+        type: boolean
+      destroy_before_apply:
+        description: "Destroy existing resources before applying (use if you're encountering resource conflicts)"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   apply:
@@ -81,6 +91,36 @@ jobs:
           name: deployment-files-${{ env.ENV_NAME }}
           path: deployment-files.md
           
+      - name: Import Existing Resources
+        id: import
+        if: ${{ !github.event.inputs.skip_import }}
+        continue-on-error: true
+        run: |
+          echo "Attempting to import existing resources into Terraform state"
+          # Import IAM role if it exists
+          terraform import module.iam_role_ec2.aws_iam_role.this aws-infra-ec2 || echo "IAM role not imported, may not exist or already in state"
+          # Import IAM policy if it exists
+          terraform import module.iam_role_ec2.aws_iam_policy.dashboard_policy arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/aws-infra-ec2-dashboard-policy || echo "IAM policy not imported, may not exist or already in state"
+          # Import key pair if it exists
+          terraform import module.key_pair.aws_key_pair.this eden-key-v2 || echo "Key pair not imported, may not exist or already in state"
+          echo "Import attempts completed"
+          
+      - name: Skip Import Notification
+        if: ${{ github.event.inputs.skip_import }}
+        run: echo "⚠️ Skipping import of existing resources as requested"
+        
+      - name: Destroy Before Apply
+        if: ${{ github.event.inputs.destroy_before_apply }}
+        run: |
+          echo "⚠️ DESTROYING EXISTING RESOURCES BEFORE APPLYING as requested"
+          echo "This will destroy all existing resources in the ${{ env.ENV_NAME }} environment"
+          echo "Proceeding with destroy in 10 seconds..."
+          sleep 10
+          terraform destroy -auto-approve \
+            -var="policy_arn=arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess" \
+            -var="role_name=aws-infra-ec2"
+          echo "✅ Destroy completed. Proceeding with apply."
+
       - name: Terraform Plan
         id: plan
         run: |
