@@ -4,31 +4,53 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Select environment to validate"
+        description: "Select environment to apply"
         required: true
         default: "dev"
         type: choice
         options:
           - dev
           - prod
+      confirm:
+        description: "Type 'APPLY' to confirm applying changes"
+        required: true
+        type: string
 
 jobs:
   apply:
     name: Terraform Apply
     runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.confirm == 'APPLY' }}
 
     env:
+      AWS_REGION: us-east-1
       ENV_NAME: ${{ github.event.inputs.environment }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify AWS Credentials
+        run: |
+          echo "Verifying AWS credentials"
+          aws sts get-caller-identity
+          echo "AWS credentials verified successfully"
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
       - name: Init
-        run: terraform init -backend=false
+        run: terraform init
+
+      - name: Select Workspace
+        run: terraform workspace select ${{ env.ENV_NAME }} || terraform workspace new ${{ env.ENV_NAME }}
 
       - name: Format Check
         run: terraform fmt -check -recursive
@@ -47,7 +69,11 @@ jobs:
           find . -maxdepth 1 -type f -name "*.tf" | sort >> deployment-files.md
           echo "" >> deployment-files.md
           echo "### Environment-specific Configuration:" >> deployment-files.md
-          find environments/${{ env.ENV_NAME }} -type f | sort >> deployment-files.md
+          if [ -d "environments/${{ env.ENV_NAME }}" ]; then
+            find environments/${{ env.ENV_NAME }} -type f | sort >> deployment-files.md
+          else
+            echo "No environment-specific files found for ${{ env.ENV_NAME }}" >> deployment-files.md
+          fi
           
       - name: Upload Deployment Files List
         uses: actions/upload-artifact@v4
@@ -55,5 +81,34 @@ jobs:
           name: deployment-files-${{ env.ENV_NAME }}
           path: deployment-files.md
           
-      - name: ℹ️ Note About Apply
-        run: echo "This workflow only validates syntax. To apply changes, you need to run terraform apply locally with proper AWS credentials."
+      - name: Terraform Plan
+        id: plan
+        run: |
+          echo "Planning infrastructure deployment for ${{ env.ENV_NAME }} environment"
+          terraform plan -out=tfplan \
+            -var="policy_arn=arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess" \
+            -var="role_name=aws-infra-ec2"
+            
+      - name: Save Plan Output
+        run: terraform show -no-color tfplan > tfplan.txt
+        
+      - name: Upload Plan as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-${{ env.ENV_NAME }}
+          path: tfplan.txt
+          
+      - name: Apply Warning
+        run: |
+          echo "⚠️ WARNING: ATTENTION! This will apply infrastructure changes to the ${{ env.ENV_NAME }} environment!"
+          echo "⚠️ Review the plan carefully before proceeding."
+          echo "Proceeding with apply in 10 seconds..."
+          sleep 10
+          
+      - name: Terraform Apply
+        run: |
+          echo "Applying infrastructure changes to ${{ env.ENV_NAME }} environment"
+          terraform apply -auto-approve tfplan
+          
+      - name: Apply Confirmation
+        run: echo "✅ Infrastructure changes have been successfully applied to the ${{ env.ENV_NAME }} environment."
