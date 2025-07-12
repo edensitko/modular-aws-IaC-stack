@@ -1,5 +1,6 @@
 resource "aws_iam_role" "this" {
   name = var.role_name
+  force_detach_policies = true
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
@@ -13,6 +14,10 @@ resource "aws_iam_role" "this" {
       }
     ]
   })
+  
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Attach the S3 read-only policy
@@ -45,6 +50,10 @@ resource "aws_iam_policy" "dashboard_policy" {
       }
     ]
   })
+  
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Attach the custom dashboard policy
@@ -56,4 +65,8 @@ resource "aws_iam_role_policy_attachment" "dashboard_policy_attachment" {
 resource "aws_iam_instance_profile" "this" {
   name = "${var.role_name}-instance-profile"
   role = aws_iam_role.this.name
+  
+  lifecycle {
+    create_before_destroy = true
+  }
 }
