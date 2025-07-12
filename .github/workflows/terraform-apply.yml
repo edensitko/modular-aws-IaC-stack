@@ -1,0 +1,59 @@
+name: Terraform Apply (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Select environment to validate"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - prod
+
+jobs:
+  apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+
+    env:
+      ENV_NAME: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Init
+        run: terraform init -backend=false
+
+      - name: Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Validate Syntax
+        run: terraform validate -no-color
+        
+      - name: List Files to be Deployed
+        run: |
+          echo "## Files that would be deployed for ${{ env.ENV_NAME }} environment:" > deployment-files.md
+          echo "" >> deployment-files.md
+          echo "### Modules:" >> deployment-files.md
+          find modules -type f -name "*.tf" | sort >> deployment-files.md
+          echo "" >> deployment-files.md
+          echo "### Root Configuration:" >> deployment-files.md
+          find . -maxdepth 1 -type f -name "*.tf" | sort >> deployment-files.md
+          echo "" >> deployment-files.md
+          echo "### Environment-specific Configuration:" >> deployment-files.md
+          find environments/${{ env.ENV_NAME }} -type f | sort >> deployment-files.md
+          
+      - name: Upload Deployment Files List
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-files-${{ env.ENV_NAME }}
+          path: deployment-files.md
+          
+      - name: ℹ️ Note About Apply
+        run: echo "This workflow only validates syntax. To apply changes, you need to run terraform apply locally with proper AWS credentials."

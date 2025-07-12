@@ -1,0 +1,67 @@
+name: Terraform Destroy (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Select environment to destroy"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - prod
+      confirm:
+        description: "Type 'DESTROY' to confirm destruction of resources"
+        required: true
+        type: string
+
+jobs:
+  destroy:
+    name: Terraform Destroy
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.confirm == 'DESTROY' }}
+
+    env:
+      AWS_REGION: us-east-1
+      ENV_NAME: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Configure AWS credentials using GitHub Actions best practices
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Init
+        run: terraform init -reconfigure
+
+      - name: Select Workspace
+        run: terraform workspace select ${{ env.ENV_NAME }} || terraform workspace new ${{ env.ENV_NAME }}
+
+      - name: Terraform Destroy
+        run: |
+          echo "Destroying all resources in ${{ env.ENV_NAME }} environment"
+          terraform destroy -auto-approve \
+            -var="policy_arn=arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess" \
+            -var="role_name=aws-infra-ec2"
+
+      - name: Confirmation
+        run: echo "Resources in ${{ env.ENV_NAME }} environment have been destroyed."
+
+      - name: Cleanup Status
+        if: always()
+        run: |
+          if [ ${{ job.status }} == "success" ]; then
+            echo "✅ Terraform destroy completed successfully!"
+          else
+            echo "⚠️ Terraform destroy encountered issues. Check the logs for details."
+          fi
