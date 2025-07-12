@@ -1,5 +1,5 @@
 resource "aws_iam_role" "this" {
-  name = var.role_name
+  name                  = var.role_name
   force_detach_policies = true
 
   assume_role_policy = jsonencode({
@@ -14,7 +14,7 @@ resource "aws_iam_role" "this" {
       }
     ]
   })
-  
+
   lifecycle {
     create_before_destroy = true
   }
@@ -50,7 +50,7 @@ resource "aws_iam_policy" "dashboard_policy" {
       }
     ]
   })
-  
+
   lifecycle {
     create_before_destroy = true
   }
@@ -65,7 +65,7 @@ resource "aws_iam_role_policy_attachment" "dashboard_policy_attachment" {
 resource "aws_iam_instance_profile" "this" {
   name = "${var.role_name}-instance-profile"
   role = aws_iam_role.this.name
-  
+
   lifecycle {
     create_before_destroy = true
   }
