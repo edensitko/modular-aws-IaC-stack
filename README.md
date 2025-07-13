@@ -282,6 +282,53 @@ To update the infrastructure:
    - Verify ALB health checks are passing
    - Access the EC2 dashboard via the ALB DNS name
 
+## 💰 Cost Estimation with Infracost
+
+This project integrates with Infracost to provide cost estimates for AWS resources before deployment.
+
+### Local Cost Estimation
+
+To estimate costs locally:
+
+1. **Install Infracost**:
+   ```bash
+   brew install infracost
+   ```
+
+2. **Authenticate with Infracost**:
+   ```bash
+   infracost auth login
+   ```
+
+3. **Generate cost breakdown**:
+   ```bash
+   infracost breakdown --path=.
+   ```
+
+4. **Compare changes before applying**:
+   ```bash
+   infracost diff --path=. --compare-to=infracost-base.json
+   ```
+
+### CI/CD Integration
+
+Infracost is integrated into the CI/CD pipeline to provide cost estimates on pull requests:
+
+1. **GitHub Actions Workflow**: `.github/workflows/infracost.yml`
+2. **Configuration**: `infracost.yml` and `infracost-usage.yml`
+3. **Required Secret**: Add `INFRACOST_API_KEY` to GitHub repository secrets
+
+### Cost Optimization
+
+Based on the current configuration, estimated monthly costs are:
+- **Dev Environment**: ~$25/month
+- **Prod Environment**: ~$25/month
+
+Main cost components:
+- Application Load Balancer: $16.43/month
+- EC2 instances (t2.micro): $8.47/month per instance
+- CloudWatch alarms: $0.20/month
+
 ## 🔧 Troubleshooting
 
 ### Resource Conflicts

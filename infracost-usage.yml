@@ -1,0 +1,26 @@
+version: 0.1
+resource_usage:
+  # Auto Scaling Group usage estimates
+  aws_autoscaling_group.this:
+    instances: 1  # Minimum instance count
+    operating_system: linux
+    reserved_instance_type: standard
+    reserved_instance_term: 1_year
+    reserved_instance_payment_option: no_upfront
+
+  # Application Load Balancer usage estimates
+  aws_lb.this:
+    monthly_data_processed_gb: 100  # Estimated GB processed per month
+
+  # CloudWatch usage estimates
+  aws_cloudwatch_metric_alarm.cpu_high:
+    monthly_metrics: 5  # Number of metrics monitored
+    monthly_metric_samples: 10000  # Number of samples per month
+
+  # EC2 instance usage estimates (for launch template)
+  aws_launch_template.this:
+    monthly_cpu_credit_hrs: 350  # For T-series instances
+    operating_system: linux
+    reserved_instance_type: standard
+    reserved_instance_term: 1_year
+    reserved_instance_payment_option: no_upfront

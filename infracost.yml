@@ -1,0 +1,11 @@
+version: 0.1
+
+projects:
+  - path: .
+    terraform_var_files:
+      - environments/dev/terraform.tfvars
+    usage_file: infracost-usage.yml # Optional usage estimates file
+
+# You can define different usage scenarios for resources
+# This helps estimate costs for different environments or workloads
+# usage_file: infracost-usage.yml
