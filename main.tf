@@ -22,6 +22,8 @@ data "aws_ami" "ubuntu" {
   }
 }
 
+# Added comment to test Infracost integration
+
 module "vpc" {
   source   = "./modules/vpc"
   vpc_name = var.vpc_name
