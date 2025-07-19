@@ -80,3 +80,7 @@ module "cloudwatch" {
   name     = "aws-infra-nginx"
   asg_name = module.asg_alb.asg_name
 }
+
+output "alb_dns_name" {
+  value = module.asg_alb.alb_dns_name
+}
