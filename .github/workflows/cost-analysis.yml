@@ -1,0 +1,111 @@
+name: AWS Cost Analysis
+
+on:
+  # Manual trigger with optional environment input
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to analyze (dev, staging, prod)'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      include_details:
+        description: 'Include detailed resource breakdown'
+        required: false
+        default: true
+        type: boolean
+        
+
+jobs:
+  analyze_costs:
+    name: Analyze AWS Resource Costs
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    
+    env:
+      ENV_NAME: ${{ github.event.inputs.environment }}
+      INCLUDE_DETAILS: ${{ github.event.inputs.include_details }}
+      AWS_REGION: 'us-east-1'  # Change to your default region
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      # Get current timestamp for reporting
+      - name: Get current time
+        id: current-time
+        run: echo "time=$(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
+      
+      # Invoke the cost calculator Lambda function
+      - name: Invoke Cost Calculator Lambda
+        id: invoke-lambda
+        run: |
+          # Store webhook URLs in variables to avoid GitHub Actions warnings
+          DISCORD_WEBHOOK="${{ secrets.DISCORD_WEBHOOK_URL }}"
+          SLACK_WEBHOOK="${{ secrets.SLACK_WEBHOOK_URL }}"
+          TELEGRAM_API="${{ secrets.TELEGRAM_API_URL }}"
+          
+          RESPONSE=$(aws lambda invoke \
+            --function-name "${ENV_NAME}-aws-infra-cost-calculator" \
+            --payload "$(echo '{"repo":"'$GITHUB_REPOSITORY'", "env_name":"'$ENV_NAME'", "actor":"'$GITHUB_ACTOR'", "time":"'${{ steps.current-time.outputs.time }}'", "discord_webhook_url":"'$DISCORD_WEBHOOK'", "slack_webhook_url":"'$SLACK_WEBHOOK'", "telegram_api_url":"'$TELEGRAM_API'"}' | base64)" \
+            --cli-binary-format raw-in-base64-out \
+            /tmp/lambda-response.json)
+          
+          echo "Lambda execution status: $RESPONSE"
+          cat /tmp/lambda-response.json
+          
+          # Extract cost information for summary
+          TOTAL_COST=$(cat /tmp/lambda-response.json | jq -r '.body' | jq -r '.total_daily_cost')
+          MONTHLY_COST=$(cat /tmp/lambda-response.json | jq -r '.body' | jq -r '.estimated_monthly_cost')
+          
+          echo "total_cost=$TOTAL_COST" >> $GITHUB_OUTPUT
+          echo "monthly_cost=$MONTHLY_COST" >> $GITHUB_OUTPUT
+      
+      # Create a cost summary as a job artifact
+      - name: Generate Cost Summary
+        run: |
+          echo "# AWS Cost Analysis for ${{ env.ENV_NAME }} Environment" > cost-summary.md
+          echo "" >> cost-summary.md
+          echo "**Analysis Date:** ${{ steps.current-time.outputs.time }}" >> cost-summary.md
+          echo "**Environment:** ${{ env.ENV_NAME }}" >> cost-summary.md
+          echo "**Requested By:** ${{ github.actor }}" >> cost-summary.md
+          echo "" >> cost-summary.md
+          echo "## Cost Summary" >> cost-summary.md
+          echo "* **Daily Cost:** $${{ steps.invoke-lambda.outputs.total_cost }}" >> cost-summary.md
+          echo "* **Estimated Monthly Cost:** $${{ steps.invoke-lambda.outputs.monthly_cost }}" >> cost-summary.md
+          echo "" >> cost-summary.md
+          echo "For detailed breakdown, check the notification sent to your configured channels." >> cost-summary.md
+      
+      # Upload the cost summary as an artifact
+      - name: Upload Cost Summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: cost-analysis-report
+          path: cost-summary.md
+          retention-days: 90
+      
+      # Post summary to GitHub step summary
+      - name: Post Summary
+        run: cat cost-summary.md >> $GITHUB_STEP_SUMMARY
+      
+      # Optional: Create a GitHub issue with the cost report
+      - name: Create GitHub Issue with Cost Report
+        if: github.event.inputs.include_details == 'true'
+        uses: JasonEtco/create-an-issue@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          filename: cost-summary.md
+          update_existing: true
+          search_existing: title
