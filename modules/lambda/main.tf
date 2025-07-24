@@ -1,26 +1,26 @@
 locals {
   lambda_functions = {
     hello_world = {
-      filename      = "${path.module}/functions/hello_world.py"
-      function_name = "${var.name_prefix}-hello-world"
-      handler       = "hello_world.lambda_handler"
-      runtime       = "python3.9"
-      timeout       = 30
-      memory_size   = 128
-      description   = "A simple hello world Lambda function"
+      filename              = "${path.module}/functions/hello_world.py"
+      function_name         = "${var.name_prefix}-hello-world"
+      handler               = "hello_world.lambda_handler"
+      runtime               = "python3.9"
+      timeout               = 30
+      memory_size           = 128
+      description           = "A simple hello world Lambda function"
       environment_variables = {}
-      create_api_gateway = true
+      create_api_gateway    = true
     },
     s3_processor = {
-      filename      = "${path.module}/functions/s3_processor.py"
-      function_name = "${var.name_prefix}-s3-processor"
-      handler       = "s3_processor.lambda_handler"
-      runtime       = "python3.9"
-      timeout       = 60
-      memory_size   = 256
-      description   = "Lambda function for processing S3 events"
+      filename              = "${path.module}/functions/s3_processor.py"
+      function_name         = "${var.name_prefix}-s3-processor"
+      handler               = "s3_processor.lambda_handler"
+      runtime               = "python3.9"
+      timeout               = 60
+      memory_size           = 256
+      description           = "Lambda function for processing S3 events"
       environment_variables = {}
-      create_api_gateway = false
+      create_api_gateway    = false
     },
     cost_calculator = {
       filename      = "${path.module}/functions/cost_calculator.py"
@@ -32,8 +32,8 @@ locals {
       description   = "Lambda function for calculating AWS resource costs and sending notifications"
       environment_variables = {
         DISCORD_WEBHOOK_URL = var.discord_webhook_url
-        SLACK_WEBHOOK_URL = var.slack_webhook_url
-        TELEGRAM_API_URL = var.telegram_api_url
+        SLACK_WEBHOOK_URL   = var.slack_webhook_url
+        TELEGRAM_API_URL    = var.telegram_api_url
       }
       create_api_gateway = true
     }
@@ -138,7 +138,7 @@ resource "aws_apigatewayv2_api" "lambda_api" {
 
   name          = "${each.value.function_name}-api"
   protocol_type = "HTTP"
-  
+
   tags = var.tags
 }
 

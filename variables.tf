@@ -43,7 +43,6 @@ variable "asg_name" {
   description = "Auto Scaling Group name"
   type        = string
   default     = "aws-infra-nginx"
-  
 }
 
 variable "discord_webhook_url" {
@@ -51,7 +50,6 @@ variable "discord_webhook_url" {
   type        = string
   default     = ""
   sensitive   = true
-
 }
 
 variable "slack_webhook_url" {
@@ -67,4 +65,3 @@ variable "telegram_api_url" {
   default     = ""
   sensitive   = true
 }
-
