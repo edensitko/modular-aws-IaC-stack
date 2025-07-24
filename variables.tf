@@ -45,3 +45,23 @@ variable "asg_name" {
   default     = "aws-infra-nginx"
 }
 
+variable "discord_webhook_url" {
+  description = "Discord webhook URL for notifications"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "slack_webhook_url" {
+  description = "Slack webhook URL for notifications"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "telegram_api_url" {
+  description = "Telegram API URL for notifications"
+  type        = string
+  default     = ""
+  sensitive   = true
+}

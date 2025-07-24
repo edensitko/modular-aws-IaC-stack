@@ -81,6 +81,21 @@ module "cloudwatch" {
   asg_name = module.asg_alb.asg_name
 }
 
-output "alb_dns_name" {
-  value = module.asg_alb.alb_dns_name
+module "lambda" {
+  source      = "./modules/lambda"
+  name_prefix = "${terraform.workspace}-aws-infra"
+  tags = {
+    Environment = terraform.workspace
+    Project     = "aws-infrastructure"
+    Terraform   = "true"
+  }
+  log_retention_days = 30
+  # Webhook URLs for cost_calculator notifications
+  discord_webhook_url = var.discord_webhook_url
+  slack_webhook_url   = var.slack_webhook_url
+  telegram_api_url    = var.telegram_api_url
+  # Uncomment and configure these if you want to enable S3 trigger
+  # create_s3_trigger = true
+  # s3_trigger_bucket = "your-s3-bucket-name"
 }
+
