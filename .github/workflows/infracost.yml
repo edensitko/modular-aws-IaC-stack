@@ -48,7 +48,9 @@ jobs:
                         --out-file=/tmp/infracost.json
 
       - name: Post Infracost comment
-        uses: infracost/actions/comment@v2
+        uses: infracost/actions@v2
         with:
+          entrypoint: comment
           file: /tmp/infracost.json
           behavior: update
+          github-token: ${{ secrets.GITHUB_TOKEN }}
